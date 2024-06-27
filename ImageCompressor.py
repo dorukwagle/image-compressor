@@ -1,6 +1,5 @@
 from PIL import Image, UnidentifiedImageError
 from threading import Thread
-import subprocess as sp
 import os
 import sys
 import time
@@ -15,8 +14,11 @@ def get_filename(path):
 
 
 def list_files(folder_path):
-    run = sp.run(['find', folder_path], capture_output=True)
-    return run.stdout.decode('utf-8').strip().split('\n')
+    file_paths = []
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            file_paths.append(os.path.join(root, file))
+    return file_paths
 
 
 def get_destination_file(base_path, file_path):
@@ -122,7 +124,6 @@ def main():
         exit('no source directory given')
 
     folder_path = args[1][0:-1] if args[1][-1] == '/' else args[1]
-
     quality = args[2] if len(args) > 2 else 80
     verbose = '-v' in args
     parallel = '--threads' in args
