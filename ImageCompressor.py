@@ -21,7 +21,9 @@ def list_files(folder_path):
 
 def get_destination_file(base_path, file_path):
     new_dest = f'{base_path}/adjusted'
-    return f"{new_dest}{file_path.replace(base_path, '')}"
+    file = f"{new_dest}{file_path.replace(base_path, '')}"
+    filename = get_filename(file)
+    return file.replace(filename, filename.lower())
 
 
 def final_optimize(src, dest):
