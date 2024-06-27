@@ -1,10 +1,11 @@
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from threading import Thread
 import subprocess as sp
 import os
 import sys
 import time
 from pathlib import Path
+from termcolor.termcolor import colored
 
 
 def get_filename(path):
@@ -23,22 +24,28 @@ def get_destination_file(base_path, file_path):
 
 
 def readjust_image(base_path, img_path, quality=50, dpi=(72, 72), format='', size='', verbose=False):
-    with Image.open(img_path) as img:
-        img_size = size or img.size
-        img_format = format or img.format
+    try:
+        with Image.open(img_path) as img:
+            img_size = size or img.size
+            img_format = format or img.format
 
-        destination_file = get_destination_file(base_path, img_path)
+            destination_file = get_destination_file(base_path, img_path)
 
-        # create destination folder if not exist
-        path = Path(destination_file)
-        path = path.parent
-        path.mkdir(parents=True, exist_ok=True)
+            # create destination folder if not exist
+            path = Path(destination_file)
+            path = path.parent
+            path.mkdir(parents=True, exist_ok=True)
 
-        img = img.resize(img_size, Image.Resampling.LANCZOS)
-        img.save(destination_file, img_format, optimize=True, quality=quality, dpi=dpi, lossless=False)
+            img = img.resize(img_size, Image.Resampling.LANCZOS)
+            img.save(destination_file, img_format, optimize=True, quality=quality, dpi=dpi, lossless=False)
 
-        if verbose:
-            print(img_path, ' >> ', destination_file)
+            if verbose:
+                text = f"{img_path} >> {destination_file}"
+                print(colored(text, 'green'))
+
+    except UnidentifiedImageError:
+        text = f"Un-Processable: {img_path}"
+        print(colored(text, 'red'))
 
 
 def help_text():
