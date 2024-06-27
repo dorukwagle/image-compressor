@@ -4,6 +4,7 @@ import subprocess as sp
 import os
 import sys
 import time
+import shutil
 from pathlib import Path
 from termcolor.termcolor import colored
 
@@ -23,11 +24,20 @@ def get_destination_file(base_path, file_path):
     return f"{new_dest}{file_path.replace(base_path, '')}"
 
 
-def readjust_image(base_path, img_path, quality=50, dpi=(72, 72), format='', size='', verbose=False):
+def final_optimize(src, dest):
+    if os.path.getsize(src) >= os.path.getsize(dest):
+        return
+
+    os.remove(dest)
+    shutil.copy2(src, dest)
+
+
+def readjust_image(base_path, img_path, quality=50, dpi=(72, 72), format='', size='', verbose=False, convert=False):
     try:
         with Image.open(img_path) as img:
             img_size = size or img.size
             img_format = format or img.format
+            img_format = 'webp' if convert else img_format
 
             destination_file = get_destination_file(base_path, img_path)
 
@@ -36,8 +46,17 @@ def readjust_image(base_path, img_path, quality=50, dpi=(72, 72), format='', siz
             path = path.parent
             path.mkdir(parents=True, exist_ok=True)
 
+            if convert:
+                img = img.convert('RGBA')
+                destination_file = destination_file.replace(
+                    destination_file[destination_file.rindex('.'):],
+                    '.webp')
+
             img = img.resize(img_size, Image.Resampling.LANCZOS)
             img.save(destination_file, img_format, optimize=True, quality=quality, dpi=dpi, lossless=False)
+
+            # perform final size comparison of source and destination file
+            final_optimize(img_path, destination_file)
 
             if verbose:
                 text = f"{img_path} >> {destination_file}"
@@ -55,7 +74,7 @@ def help_text():
 '''
 
 
-def execute_in_threads(folder_path, quality, verbose):
+def execute_in_threads(folder_path, quality, convert, verbose):
     total_threads = 8
 
     files = list_files(folder_path)
@@ -69,7 +88,7 @@ def execute_in_threads(folder_path, quality, verbose):
             fl = files[fl_index]
 
             if os.path.isfile(fl):
-                readjust_image(folder_path, fl, quality=int(quality), verbose=verbose, dpi=(300, 300))
+                readjust_image(folder_path, fl, quality=int(quality), convert=convert, verbose=verbose, dpi=(300, 300))
 
     for i in range(0, total_threads):
         start_pos = i * chunk_size
@@ -88,10 +107,10 @@ def execute_in_threads(folder_path, quality, verbose):
         item.join()
 
 
-def execute(folder_path, quality, verbose):
+def execute(folder_path, quality, convert, verbose):
     for fl in list_files(folder_path):
         if os.path.isfile(fl):
-            readjust_image(folder_path, fl, quality=int(quality), verbose=verbose, dpi=(300, 300))
+            readjust_image(folder_path, fl, convert=convert, quality=int(quality), verbose=verbose, dpi=(300, 300))
 
 
 def main():
@@ -105,6 +124,7 @@ def main():
     quality = args[2] if len(args) > 2 else 80
     verbose = '-v' in args
     parallel = '--threads' in args
+    convert = '--convert' in args
 
     if (not os.path.exists(folder_path)) or (not os.path.isdir(folder_path)):
         exit('given path must be a directory')
@@ -116,9 +136,9 @@ def main():
 
     start = time.time()
     if parallel:
-        execute_in_threads(folder_path, quality, verbose)
+        execute_in_threads(folder_path, quality, convert, verbose)
     else:
-        execute(folder_path, quality, verbose)
+        execute(folder_path, quality, convert, verbose)
     end = time.time()
 
     print(f'Completed in: {end - start} Seconds')
